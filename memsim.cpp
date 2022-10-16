@@ -3,13 +3,18 @@
 #include <fstream>
 #include <deque>    
 #include <vector>
+#include <algorithm>
 #include <map>
 #include <string>
 #include <sstream>
 
 
 void fifo(char* tracefile, int nframes, std::string dq){
-    //initialize necessary variables.   
+    //initialize necessary variables.
+    std::vector<std::pair<int, char>> mem;  
+    std::vector<std::pair<int, char>>::iterator itr1;
+    std::vector<std::pair<int, char>>::iterator itr2 = mem.begin();
+
     int memFrames = nframes;
     int eventtr = 0;
     int diskread = 0;
@@ -20,10 +25,50 @@ void fifo(char* tracefile, int nframes, std::string dq){
 
     //read trace file
     while(fscanf(mfile, "%x %c", &addr, &rw) != EOF){
-        std::cout<<addr<<" "<<rw <<"\n";
+        eventtr +=1;
+        //when reading memory addresses from file, divide by 4096 or left bit shift by 12, since page size is 4 KB
+        addr /= 4096;
+
+        for(itr1 = mem.begin(); itr1 < mem.end(); itr1++)    //check if in page table
+        {
+            if(itr1->first == addr)
+                break;
+        }
+
+        if(itr1 != mem.end()){ //is present in fifo
+            switch(itr1->second){
+                case 'R':
+                    itr1->second = rw;
+                break;
+            }
+
+        }
+        else{ //is not present in fifo
+            if(mem.size() < memFrames) //fifo not full
+            {
+                mem.push_back(std::pair<int,char>(addr, rw));
+            } 
+            else{   //fifo is full
+                if(mem.begin()->second == 'W')
+                {
+                    diskwrite++;
+                }
+                mem.erase(mem.begin());
+                mem.push_back(std::pair<int,char>(addr, rw));
+            }
+
+            diskread++;
+        }
+
+
+
     }
 
     fclose(mfile);
+    std::cout<<"total memory frames: "<<memFrames<<std::endl;
+    std::cout<<"events in trace: "<<eventtr<<std::endl;
+    std::cout<<"total disk reads: "<<diskread<<std::endl;
+    std::cout<<"total disk writes: "<<diskwrite<<std::endl;
 }
 
 void lru(std::string tracefile, int nframes, std::string dq){
