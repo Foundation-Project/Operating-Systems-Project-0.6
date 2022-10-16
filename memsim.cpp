@@ -71,12 +71,90 @@ void fifo(char* tracefile, int nframes, std::string dq){
     std::cout<<"total disk writes: "<<diskwrite<<std::endl;
 }
 
-void lru(std::string tracefile, int nframes, std::string dq){
+void lru(char* tracefile, int nframes, std::string dq){
+    //initialize necessary variables.
+    std::vector<std::pair<int, char>> mem;  
+    std::vector<std::pair<int, char>>::iterator itr1;
+    std::vector<std::pair<int, char>>::iterator itr2 = mem.begin();
+
+    int memFrames = nframes;
+    int eventtr = 0;
+    int diskread = 0;
+    int diskwrite = 0;
+    FILE *mfile = fopen(tracefile, "r");
+
+    unsigned addr; char rw;
+
+    //read trace file
+    while(fscanf(mfile, "%x %c", &addr, &rw) != EOF) {
+        addr /= 4096;
+        eventtr++;
+
+        for(itr1 = mem.begin(); itr1 < mem.end(); itr1++)    //check if in page table
+        {
+            if(itr1->first == addr)
+                break;
+        }
+
+        if(itr1 != mem.end()){ //is present in lru
+            char origchar = itr1->second;
+            mem.erase(itr1);    //delete
+            if(origchar == 'W' && rw == 'R'){
+                rw = 'W';
+
+            }
+            mem.push_back(std::pair<int, char>(addr, rw));       
+        } 
+        else{ //is not present in fifo
+            if(mem.size() < memFrames) //page is not in lru and lru is not full
+            {
+                mem.push_back(std::pair<int, char>(addr, rw)); //add new page to the top of LRU
+            } 
+            else{   //page is not in lru and lru is full
+                if(mem.begin()->second == 'W'){ diskwrite++;}
+                mem.erase(mem.begin()); //eject oldest page
+                mem.push_back(std::pair<int, char>(addr, rw)); //add new page to the top
+
+            }
+            diskread++;
+        }
+    }
+    fclose(mfile);
+    std::cout<<"total memory frames: "<<memFrames<<std::endl;
+    std::cout<<"events in trace: "<<eventtr<<std::endl;
+    std::cout<<"total disk reads: "<<diskread<<std::endl;
+    std::cout<<"total disk writes: "<<diskwrite<<std::endl;    
 
 }
 
-void segmentedfifo(std::string tracefile, int nframes, int p, std::string dq)
+void segmentedfifo(char* tracefile, int nframes, int p, std::string dq)
 {
+    //initialize the variables
+    int memFrames = nframes;
+    int eventtr = 0;
+    int diskread = 0;
+    int diskwrite = 0;
+
+    std::vector<std::pair<int, char>> mem;  
+    std::vector<std::pair<int, char>>::iterator itr1;
+
+    unsigned addr; char rw;
+    FILE *mfile = fopen(tracefile, "r");
+
+    
+
+    //read trace file
+    while(fscanf(mfile, "%x %c", &addr, &rw) != EOF){
+        eventtr++;
+
+    }
+
+    fclose(mfile);
+    std::cout<<"total memory frames: "<<memFrames<<std::endl;
+    std::cout<<"events in trace: "<<eventtr<<std::endl;
+    std::cout<<"total disk reads: "<<diskread<<std::endl;
+    std::cout<<"total disk writes: "<<diskwrite<<std::endl;
+
 
 }
 
